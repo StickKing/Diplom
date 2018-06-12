@@ -8,11 +8,51 @@
     tools:context=".MainActivity"
     tools:showIn="@layout/app_bar_main">
 
+
     <WebView
         android:id="@+id/Web"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:visibility="invisible"
         tools:layout_editor_absoluteX="9dp"
         tools:layout_editor_absoluteY="9dp" />
+
+    <LinearLayout
+        android:id="@+id/offline"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        tools:layout_editor_absoluteY="0dp">
+
+        <TextView
+            android:id="@+id/text_zag"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Выберете город" />
+
+        <Spinner
+            android:id="@+id/spinner"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            tools:layout_editor_absoluteX="8dp"
+            tools:layout_editor_absoluteY="114dp" />
+
+        <EditText
+            android:id="@+id/editText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ems="10"
+            android:inputType="textPersonName"
+            android:text="Введите название улицы" />
+
+        <Button
+            android:id="@+id/search"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Поиск" />
+    </LinearLayout>
+
 
 </android.support.constraint.ConstraintLayout>

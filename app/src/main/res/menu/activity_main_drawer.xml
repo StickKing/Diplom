@@ -5,13 +5,14 @@
 
     <group android:checkableBehavior="single">
         <item
-            android:id="@+id/nav_camera"
-            android:icon="@drawable/ic_menu_camera"
-            android:title="Офлайн функции" />
+            android:id="@+id/general"
+            android:icon="@drawable/ic_menu_send"
+            android:title="Главный экран" />
         <item
-            android:id="@+id/nav_share"
-            android:icon="@drawable/ic_menu_share"
-            android:title="Ссылки" />
+            android:id="@+id/offline"
+            android:icon="@drawable/ic_menu_manage"
+            android:title="Офлайн функции" />
+
     </group>
 
 </menu>
