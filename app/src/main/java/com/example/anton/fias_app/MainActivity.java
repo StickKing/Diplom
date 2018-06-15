@@ -1,15 +1,20 @@
 package com.example.anton.fias_app;
 
+import android.Manifest;
 import android.app.DownloadManager;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.support.annotation.RequiresApi;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
+import android.support.v4.app.ActivityCompat;
+import android.util.Log;
 import android.view.View;
 import android.support.design.widget.NavigationView;
 import android.support.v4.view.GravityCompat;
@@ -43,17 +48,24 @@ import android.view.View.*;
 import android.os.*;
 import android.widget.Toast;
 
+import java.io.File;
+
+import static android.os.Environment.DIRECTORY_DOWNLOADS;
+
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
 
 
-    private WebView myWebView; //Объявляю webview
 
+    private WebView myWebView; //Объявляю webview
     private LinearLayout myLiner;
 
     private DownloadManager downloadManager;
+    private Context context = null;
+    private static final String TAG = null;
+    private int REQUEST_CODE;
 
-    //Toast toast = Toast.makeText(getApplicationContext(),"Отсутствует подключение к интернету!", Toast.LENGTH_SHORT);
+    Toast toast = null;
 
 
     private class MyWebViewClient extends android.webkit.WebViewClient
@@ -76,8 +88,9 @@ public class MainActivity extends AppCompatActivity
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
+        //Спрашиваем у пользователя разрешение на использование его пространства на устройстве
+        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_CODE);
 
-        //if (hasConnection()) {}
         //Присоединяю переменную webview к webview на моём активити
         myWebView = (WebView) findViewById(R.id.Web);
         myLiner = (LinearLayout) findViewById(R.id.offline);
@@ -92,26 +105,53 @@ public class MainActivity extends AppCompatActivity
         //Включаю использование JavaScript
         myWebView.getSettings().setJavaScriptEnabled(true);
 
-        //Прописываю какой сайт нужно открывать в WebView
-        myWebView.loadUrl("http://fias.nalog.ru/");
+        if (isOnline()) {
+            //Прописываю какой сайт нужно открывать в WebView
+            myWebView.loadUrl("http://fias.nalog.ru/");
+        }else{
+            toast = Toast.makeText(getApplicationContext(), "Отсутствует подключение к интернету", Toast.LENGTH_SHORT);
+            toast.show();
+        }
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
+            @RequiresApi(api = Build.VERSION_CODES.M)
             @Override
             public void onClick(View view) {
-                Snackbar.make(view, "Загрузка базы данных началась", Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
+
+                String url_bd = "http://fias.nalog.ru/Public/Downloads/20180607/BASE.7Z";
 
 
+                /*try{
+                    file_download (url_bd);
+                }
+                catch(Exception e){
+                    //Обработайте ошибку
+                    toast.show();
+                }*/
+                if (isOnline()) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                        if (Build.VERSION.SDK_INT == Build.VERSION_CODES.KITKAT || Build.VERSION.SDK_INT == Build.VERSION_CODES.LOLLIPOP || Build.VERSION.SDK_INT == Build.VERSION_CODES.LOLLIPOP_MR1 || checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
+                            downloadManager = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
+                            Uri uri = Uri.parse(url_bd);
+                            DownloadManager.Request request = new DownloadManager.Request(uri);
+                            request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+                            request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "/FIAS_BD.7Z");
+                            Long reference = downloadManager.enqueue(request);
 
+                            Snackbar.make(view, "Загрузка базы данных началась", Snackbar.LENGTH_LONG)
+                                    .setAction("Action", null).show();
 
-                downloadManager = (DownloadManager)getSystemService(Context.DOWNLOAD_SERVICE);
-                String url_bd = "http://fias.nalog.ru/Public/Downloads/20180607/fias_dbf.rar";
-                Uri uri = android.net.Uri.parse(url_bd);
-                DownloadManager.Request request = new DownloadManager.Request(uri);
-                request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
-                //request.setDestinationInExternalFilesDir(Context.,Environment.DIRECTORY_DOWNLOADS,"CountryList.json");
-                Long reference = downloadManager.enqueue(request);
+                        } else {
+                            Snackbar.make(view, "Отсутствует разрешение на загрузку", Snackbar.LENGTH_LONG)
+                                    .setAction("Action", null).show();
+                        }
+                    }
+                } else {
+                    Snackbar.make(view, "Отсутствует подключение к интернету", Snackbar.LENGTH_LONG)
+                            .setAction("Action", null).show();
+                }
+
 
 
             }
@@ -133,9 +173,14 @@ public class MainActivity extends AppCompatActivity
 
 
 
-
-
-
+    protected boolean isOnline() {
+        String cs = Context.CONNECTIVITY_SERVICE;
+        ConnectivityManager cm = (ConnectivityManager)
+                getSystemService(cs);
+        if (cm.getActiveNetworkInfo() == null) {
+            return false;
+        } else return true;
+    }
 
 
 
@@ -190,6 +235,7 @@ public class MainActivity extends AppCompatActivity
 
         if (id == R.id.general) {
 
+            if ()
             myWebView.setVisibility(View.VISIBLE);
             myLiner.setVisibility(View.GONE);
 
