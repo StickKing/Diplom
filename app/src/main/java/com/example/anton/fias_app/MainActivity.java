@@ -235,7 +235,6 @@ public class MainActivity extends AppCompatActivity
 
         if (id == R.id.general) {
 
-            if ()
             myWebView.setVisibility(View.VISIBLE);
             myLiner.setVisibility(View.GONE);
 
