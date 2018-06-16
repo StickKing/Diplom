@@ -1,10 +1,13 @@
 package com.example.anton.fias_app;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
+import android.annotation.TargetApi;
 import android.app.DownloadManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import java.util.Calendar;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.Uri;
@@ -28,29 +31,12 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.LinearLayout;
-import android.widget.ProgressBar;
-import android.widget.TextView;
 
-import com.thin.downloadmanager.DownloadRequest;
-import com.thin.downloadmanager.ThinDownloadManager;
-
-import android.net.Uri;
-import android.os.Bundle;
-import android.app.Activity;
-import android.view.View;
-import android.widget.Button;
-import android.widget.ProgressBar;
-import android.widget.TextView;
-import com.thin.downloadmanager.DownloadRequest;
-import com.thin.downloadmanager.DownloadStatusListener;
-import com.thin.downloadmanager.ThinDownloadManager;
-import android.view.View.*;
 import android.os.*;
 import android.widget.Toast;
 
-import java.io.File;
 
-import static android.os.Environment.DIRECTORY_DOWNLOADS;
+
 
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
@@ -64,6 +50,8 @@ public class MainActivity extends AppCompatActivity
     private Context context = null;
     private static final String TAG = null;
     private int REQUEST_CODE;
+
+    Calendar c = Calendar.getInstance();
 
     Toast toast = null;
 
@@ -90,6 +78,8 @@ public class MainActivity extends AppCompatActivity
 
         //Спрашиваем у пользователя разрешение на использование его пространства на устройстве
         ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_CODE);
+        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_CALENDAR}, REQUEST_CODE);
+        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_CALENDAR}, REQUEST_CODE);
 
         //Присоединяю переменную webview к webview на моём активити
         myWebView = (WebView) findViewById(R.id.Web);
@@ -106,18 +96,46 @@ public class MainActivity extends AppCompatActivity
         myWebView.getSettings().setJavaScriptEnabled(true);
 
         if (isOnline()) {
-            //Прописываю какой сайт нужно открывать в WebView
             myWebView.loadUrl("http://fias.nalog.ru/");
         }else{
+            myWebView.loadData("" +
+                    "<html>" +
+                    "   <body>" +
+                    "       <h1>Возникла проблема с сетью</h1>" +
+                            "<p>Причины по которым это могло произойти:</p>" +
+                    "       <hr>" +
+
+                           " <ul>"+
+			                    "<li>Отсутствует подключение к интернету</li>" +
+			                    "<li>Сайт на данный момент не доступен</li>" +
+			                    "<li>Вы подключены к специфичной сети</li>" +
+		                    "</ul>" +
+                    "   </body>" +
+                    "" +
+                    "</html>", "text/html", "UTF-8");
             toast = Toast.makeText(getApplicationContext(), "Отсутствует подключение к интернету", Toast.LENGTH_SHORT);
             toast.show();
         }
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
-            @RequiresApi(api = Build.VERSION_CODES.M)
+            @TargetApi(Build.VERSION_CODES.N)
+            @RequiresApi(api = Build.VERSION_CODES.N)
             @Override
             public void onClick(View view) {
+
+                Byte value = 1;
+
+                //if ()
+
+                String date = DateTuesday(value);
+                toast = Toast.makeText(getApplicationContext(), date, Toast.LENGTH_SHORT);
+                toast.show();
+
+
+
+
+
 
                 String url_bd = "http://fias.nalog.ru/Public/Downloads/20180607/BASE.7Z";
 
@@ -129,26 +147,32 @@ public class MainActivity extends AppCompatActivity
                     //Обработайте ошибку
                     toast.show();
                 }*/
-                if (isOnline()) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-                        if (Build.VERSION.SDK_INT == Build.VERSION_CODES.KITKAT || Build.VERSION.SDK_INT == Build.VERSION_CODES.LOLLIPOP || Build.VERSION.SDK_INT == Build.VERSION_CODES.LOLLIPOP_MR1 || checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
-                            downloadManager = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
-                            Uri uri = Uri.parse(url_bd);
-                            DownloadManager.Request request = new DownloadManager.Request(uri);
-                            request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
-                            request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "/FIAS_BD.7Z");
-                            Long reference = downloadManager.enqueue(request);
+                try {
+                    if (isOnline()) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                            if (Build.VERSION.SDK_INT == Build.VERSION_CODES.KITKAT || Build.VERSION.SDK_INT == Build.VERSION_CODES.LOLLIPOP || Build.VERSION.SDK_INT == Build.VERSION_CODES.LOLLIPOP_MR1 || checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
+                                downloadManager = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
+                                Uri uri = Uri.parse(url_bd);
+                                DownloadManager.Request request = new DownloadManager.Request(uri);
+                                request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+                                request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "/FIAS_BD.7Z");
+                                Long reference = downloadManager.enqueue(request);
 
-                            Snackbar.make(view, "Загрузка базы данных началась", Snackbar.LENGTH_LONG)
-                                    .setAction("Action", null).show();
+                                Snackbar.make(view, "Загрузка базы данных началась", Snackbar.LENGTH_LONG)
+                                        .setAction("Action", null).show();
 
-                        } else {
-                            Snackbar.make(view, "Отсутствует разрешение на загрузку", Snackbar.LENGTH_LONG)
-                                    .setAction("Action", null).show();
+                            } else {
+                                Snackbar.make(view, "Отсутствует разрешение на загрузку", Snackbar.LENGTH_LONG)
+                                        .setAction("Action", null).show();
+                            }
                         }
+                    } else {
+                        Snackbar.make(view, "Отсутствует подключение к интернету", Snackbar.LENGTH_LONG)
+                                .setAction("Action", null).show();
                     }
-                } else {
-                    Snackbar.make(view, "Отсутствует подключение к интернету", Snackbar.LENGTH_LONG)
+                }
+                catch(Exception e){
+                    Snackbar.make(view, "Загрузить базу данных на данный момент не возможно", Snackbar.LENGTH_LONG)
                             .setAction("Action", null).show();
                 }
 
@@ -172,7 +196,7 @@ public class MainActivity extends AppCompatActivity
 
 
 
-
+    //Проверяю подключение к интернету
     protected boolean isOnline() {
         String cs = Context.CONNECTIVITY_SERVICE;
         ConnectivityManager cm = (ConnectivityManager)
@@ -181,6 +205,47 @@ public class MainActivity extends AppCompatActivity
             return false;
         } else return true;
     }
+
+    //Рекурсия возвращающая дату предыдущего четверга
+    protected  String DateTuesday(Byte minus){
+
+
+
+        c.add(Calendar.DATE, -minus);
+
+        int dayOfWeek = c.get(Calendar.DAY_OF_WEEK);
+
+        if (dayOfWeek != 5) {
+            minus++;
+            return DateTuesday(minus);
+        } else{
+            if ((c.get(c.MONTH) + 1) >= 10 ) {
+
+                if ( (c.get(c.DAY_OF_MONTH)) >= 10 ){return (c.get(c.YEAR) + "." + (c.get(c.MONTH) + 1) + "." + c.get(c.DAY_OF_MONTH) );}
+                else {return (c.get(c.YEAR) + "." + (c.get(c.MONTH) + 1) + ".0" + c.get(c.DAY_OF_MONTH) );}
+
+            }
+            else {
+
+                if ( (c.get(c.DAY_OF_MONTH)) >= 10 ){return (c.get(c.YEAR) + ".0" + (c.get(c.MONTH) + 1) + "." + c.get(c.DAY_OF_MONTH) );}
+                else {return (c.get(c.YEAR) + ".0" + (c.get(c.MONTH) + 1) + ".0" + c.get(c.DAY_OF_MONTH) );}
+
+            }
+
+
+        }
+
+    }
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -234,7 +299,33 @@ public class MainActivity extends AppCompatActivity
         int id = item.getItemId();
 
         if (id == R.id.general) {
+            if (isOnline()) {
 
+                myWebView.loadUrl("http://fias.nalog.ru/");
+
+            }
+            else{
+
+                myWebView.loadData("" +
+                        "<html>" +
+                        "   <body>" +
+                        "       <h1>Возникла проблема с сетью</h1>" +
+                        "       <p>Причины по которым это могло произойти:</p>" +
+                        "       <hr>" +
+
+                        "       <ul>"+
+                        "           <li>Отсутствует подключение к интернету</li>" +
+                        "           <li>Сайт на данный момент не доступен</li>" +
+                        "           <li>Вы подключены к специфичной сети</li>" +
+                        "       </ul>" +
+                        " </body>" +
+                        "" +
+                        "</html>", "text/html", "UTF-8");
+
+                toast = Toast.makeText(getApplicationContext(), "Отсутствует подключение к интернету", Toast.LENGTH_SHORT);
+                toast.show();
+
+            }
             myWebView.setVisibility(View.VISIBLE);
             myLiner.setVisibility(View.GONE);
 
