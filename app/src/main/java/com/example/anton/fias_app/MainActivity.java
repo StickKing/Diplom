@@ -7,6 +7,14 @@ import android.app.DownloadManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+
+import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.util.Calendar;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
@@ -32,10 +40,18 @@ import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.LinearLayout;
 
+import java.util.Enumeration;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipException;
+import java.util.zip.ZipFile.*;
+import java.util.zip.ZipFile;
+import java.util.zip.ZipInputStream;
+
 import android.os.*;
 import android.widget.Toast;
 
-
+import org.apache.commons.compress.archivers.sevenz.SevenZArchiveEntry;
+import org.apache.commons.compress.archivers.sevenz.SevenZFile;
 
 
 public class MainActivity extends AppCompatActivity
@@ -78,6 +94,7 @@ public class MainActivity extends AppCompatActivity
 
         //Спрашиваем у пользователя разрешение на использование его пространства на устройстве
         ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_CODE);
+        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, REQUEST_CODE);
         ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_CALENDAR}, REQUEST_CODE);
         ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_CALENDAR}, REQUEST_CODE);
 
@@ -119,17 +136,22 @@ public class MainActivity extends AppCompatActivity
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
-            @TargetApi(Build.VERSION_CODES.N)
-            @RequiresApi(api = Build.VERSION_CODES.N)
+            @RequiresApi(api = Build.VERSION_CODES.M)
             @Override
             public void onClick(View view) {
 
                 Byte value = 1;
 
-                //if ()
+                String date = null;
 
-                String date = DateTuesday(value);
-                toast = Toast.makeText(getApplicationContext(), date, Toast.LENGTH_SHORT);
+
+
+
+                c = Calendar.getInstance();
+
+                date = DateTuesday(value);
+
+                toast = Toast.makeText(getApplicationContext(),  " " + date, Toast.LENGTH_SHORT);
                 toast.show();
 
 
@@ -137,16 +159,9 @@ public class MainActivity extends AppCompatActivity
 
 
 
-                String url_bd = "http://fias.nalog.ru/Public/Downloads/20180607/BASE.7Z";
+                String url_bd = "http://fias.nalog.ru/Public/Downloads/" + date + "/BASE.7Z";
 
 
-                /*try{
-                    file_download (url_bd);
-                }
-                catch(Exception e){
-                    //Обработайте ошибку
-                    toast.show();
-                }*/
                 try {
                     if (isOnline()) {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
@@ -155,7 +170,7 @@ public class MainActivity extends AppCompatActivity
                                 Uri uri = Uri.parse(url_bd);
                                 DownloadManager.Request request = new DownloadManager.Request(uri);
                                 request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
-                                request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "/FIAS_BD.7Z");
+                                request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "FIAS_BD/" + "FIAS.7Z");
                                 Long reference = downloadManager.enqueue(request);
 
                                 Snackbar.make(view, "Загрузка базы данных началась", Snackbar.LENGTH_LONG)
@@ -175,7 +190,6 @@ public class MainActivity extends AppCompatActivity
                     Snackbar.make(view, "Загрузить базу данных на данный момент не возможно", Snackbar.LENGTH_LONG)
                             .setAction("Action", null).show();
                 }
-
 
 
             }
@@ -209,7 +223,7 @@ public class MainActivity extends AppCompatActivity
     //Рекурсия возвращающая дату предыдущего четверга
     protected  String DateTuesday(Byte minus){
 
-
+        c = Calendar.getInstance();
 
         c.add(Calendar.DATE, -minus);
 
@@ -221,14 +235,14 @@ public class MainActivity extends AppCompatActivity
         } else{
             if ((c.get(c.MONTH) + 1) >= 10 ) {
 
-                if ( (c.get(c.DAY_OF_MONTH)) >= 10 ){return (c.get(c.YEAR) + "." + (c.get(c.MONTH) + 1) + "." + c.get(c.DAY_OF_MONTH) );}
-                else {return (c.get(c.YEAR) + "." + (c.get(c.MONTH) + 1) + ".0" + c.get(c.DAY_OF_MONTH) );}
+                if ( (c.get(c.DAY_OF_MONTH)) >= 10 ){return (c.get(c.YEAR) + "" + (c.get(c.MONTH) + 1) + "" + c.get(c.DAY_OF_MONTH) );}
+                else {return (c.get(c.YEAR) + "" + (c.get(c.MONTH) + 1) + "0" + c.get(c.DAY_OF_MONTH) );}
 
             }
             else {
 
-                if ( (c.get(c.DAY_OF_MONTH)) >= 10 ){return (c.get(c.YEAR) + ".0" + (c.get(c.MONTH) + 1) + "." + c.get(c.DAY_OF_MONTH) );}
-                else {return (c.get(c.YEAR) + ".0" + (c.get(c.MONTH) + 1) + ".0" + c.get(c.DAY_OF_MONTH) );}
+                if ( (c.get(c.DAY_OF_MONTH)) >= 10 ){return (c.get(c.YEAR) + "0" + (c.get(c.MONTH) + 1) + "" + c.get(c.DAY_OF_MONTH) );}
+                else {return (c.get(c.YEAR) + "0" + (c.get(c.MONTH) + 1) + "0" + c.get(c.DAY_OF_MONTH) );}
 
             }
 
@@ -238,14 +252,84 @@ public class MainActivity extends AppCompatActivity
     }
 
 
+    public static Boolean unzip(String sourceFile, String destinationFolder)  {
+        ZipInputStream zis = null;
+
+        try {
+            zis = new ZipInputStream(new BufferedInputStream(new FileInputStream(sourceFile)));
+            ZipEntry ze;
+            int count;
+            byte[] buffer = new byte[400000];
+            while ((ze = zis.getNextEntry()) != null) {
+                String fileName = ze.getName();
+                fileName = fileName.substring(fileName.indexOf("/") + 1);
+                File file = new File(destinationFolder, fileName);
+                File dir = ze.isDirectory() ? file : file.getParentFile();
+
+                if (!dir.isDirectory() && !dir.mkdirs())
+                    throw new FileNotFoundException("Invalid path: " + dir.getAbsolutePath());
+                if (ze.isDirectory()) continue;
+                FileOutputStream fout = new FileOutputStream(file);
+                try {
+                    while ((count = zis.read(buffer)) != -1)
+                        fout.write(buffer, 0, count);
+                } finally {
+                    fout.close();
+                }
+
+            }
+        } catch (IOException ioe){
+            Log.d(TAG,ioe.getMessage());
+            return false;
+        }  finally {
+            if(zis!=null)
+                try {
+                    zis.close();
+                } catch(IOException e) {
+
+                }
+        }
+        return true;
+    }
 
 
+    public void un7zip() throws IOException {
+
+        SevenZFile sevenZFile = null;
+        try {
+
+            sevenZFile = new SevenZFile(new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) + "/FIAS_BD/" + "FIAS.7Z"));
+            SevenZArchiveEntry entry = sevenZFile.getNextEntry();
+            OutputStream os = new FileOutputStream(entry.getName());
+            while (entry != null) {
+                byte[] buffer = new byte[8192];//
+                int count;
+                while ((count = sevenZFile.read(buffer, 0, buffer.length)) > -1) {
+
+                    os.write(buffer, 0, count);
+                }
+                entry = sevenZFile.getNextEntry();
+            }
+            sevenZFile.close();
+            os.close();
+
+            /*while (entry != null) {
+
+                FileOutputStream out = new FileOutputStream(entry.getName());
+                byte[] content = new byte[(int) entry.getSize()];
+                sevenZFile.read(content, 0, content.length);
+                out.write(content);
+                out.close();
+                entry = sevenZFile.getNextEntry();
+            }
+            sevenZFile.close();*/
+
+        } catch (IOException e) {
 
 
+        }
 
-
-
-
+    }
 
 
 
@@ -292,6 +376,8 @@ public class MainActivity extends AppCompatActivity
         return super.onOptionsItemSelected(item);
     }
 
+    @TargetApi(Build.VERSION_CODES.M)
+    @RequiresApi(api = Build.VERSION_CODES.M)
     @SuppressWarnings("StatementWithEmptyBody")
     @Override
     public boolean onNavigationItemSelected(MenuItem item) {
@@ -330,6 +416,100 @@ public class MainActivity extends AppCompatActivity
             myLiner.setVisibility(View.GONE);
 
         } else if (id == R.id.offline) {
+
+            // проверяем был ли уже загружен файл
+
+            File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS + "/FIAS_BD");
+            File file = new File(path, "FIAS.7z");
+
+
+            //Проверяю существует ли архив с базой данных
+            if (!file.exists()){
+
+                toast = Toast.makeText(getApplicationContext(), "База данных отсутствует, загрузите её нажав на кнопку в правом нижнем углу", Toast.LENGTH_LONG);
+                toast.show();
+
+            }else{
+
+                //Проверяю существует ли в папке с базой данных разорхивированые файлы
+                file = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) + "/FIAS_BD");
+
+                if (file.isDirectory() && (file.list().length < 9)){
+
+
+                    //try {
+                        String fl = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) + "/FIAS_BD/" + "FIAS.7Z";
+                        SevenZFile sevenZFile = null;
+
+                        File file2 = new File(path, "FIAS.7Z");
+
+
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                            if (Build.VERSION.SDK_INT == Build.VERSION_CODES.KITKAT || Build.VERSION.SDK_INT == Build.VERSION_CODES.LOLLIPOP || Build.VERSION.SDK_INT == Build.VERSION_CODES.LOLLIPOP_MR1 || checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
+                                try {
+                                    sevenZFile = new SevenZFile(new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) + "/FIAS_BD/" + "FIAS.7Z"));
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                        }
+
+
+                    //sevenZFile = new SevenZFile(new File(path, "FIAS.7z"));
+
+
+
+                        /*SevenZArchiveEntry entry = sevenZFile.getNextEntry();
+                        while (entry != null) {
+
+                            FileOutputStream out = new FileOutputStream(entry.getName());
+                            byte[] content = new byte[(int) entry.getSize()];
+                            sevenZFile.read(content, 0, content.length);
+                            out.write(content);
+                            out.close();
+                            entry = sevenZFile.getNextEntry();
+                        }
+                        sevenZFile.close();*/
+
+                    //} catch (IOException e) {
+                    //    e.printStackTrace();
+                    //}
+                    toast = Toast.makeText(getApplicationContext(), "Files = " + file.list().length + "   " + file2.exists(), Toast.LENGTH_LONG);
+                    toast.show();
+
+
+
+
+
+
+
+
+
+                }else{
+
+                    file = new File(path, "FIAS.7Z");
+
+
+
+                }
+
+
+
+            }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
             myWebView.setVisibility(View.GONE);
             myLiner.setVisibility(View.VISIBLE);
