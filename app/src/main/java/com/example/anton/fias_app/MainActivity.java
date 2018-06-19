@@ -15,6 +15,8 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Calendar;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
@@ -22,6 +24,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.support.annotation.RequiresApi;
+import android.support.constraint.ConstraintLayout;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
@@ -37,10 +40,14 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.LinearLayout;
 
+import java.util.Date;
 import java.util.Enumeration;
+import java.util.Timer;
+import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipException;
 import java.util.zip.ZipFile.*;
@@ -48,28 +55,47 @@ import java.util.zip.ZipFile;
 import java.util.zip.ZipInputStream;
 
 import android.os.*;
+import android.widget.ProgressBar;
+import android.widget.Spinner;
 import android.widget.Toast;
 
 import org.apache.commons.compress.archivers.sevenz.SevenZArchiveEntry;
 import org.apache.commons.compress.archivers.sevenz.SevenZFile;
+
+import ru.smartflex.tools.dbf.DbfEngine;
+import ru.smartflex.tools.dbf.DbfHeader;
+import ru.smartflex.tools.dbf.DbfIterator;
+import ru.smartflex.tools.dbf.DbfRecord;
+import ru.smartflex.tools.dbf.test.Fp26Reader;
 
 
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
 
 
-
+    //Компоненты интерфейса
     private WebView myWebView; //Объявляю webview
     private LinearLayout myLiner;
+    private Button s_but;
+    private ProgressBar p_bar;
+
+    //Потоки
+    GorodaThread gh = null;
+    DownloadThread dh = null;
 
     private DownloadManager downloadManager;
     private Context context = null;
     private static final String TAG = null;
     private int REQUEST_CODE;
+    Runnable runnable = null;
+    Thread thread = null;
+    ArrayList<String> n_g = new ArrayList<String>();
+
 
     Calendar c = Calendar.getInstance();
 
     Toast toast = null;
+
 
 
     private class MyWebViewClient extends android.webkit.WebViewClient
@@ -98,6 +124,10 @@ public class MainActivity extends AppCompatActivity
         ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_CALENDAR}, REQUEST_CODE);
         ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_CALENDAR}, REQUEST_CODE);
 
+
+        s_but = (Button)findViewById(R.id.search);
+        p_bar = (ProgressBar)findViewById(R.id.progressBar);
+        ConstraintLayout constraintLayout = (ConstraintLayout) findViewById(R.id.id_c);
         //Присоединяю переменную webview к webview на моём активити
         myWebView = (WebView) findViewById(R.id.Web);
         myLiner = (LinearLayout) findViewById(R.id.offline);
@@ -111,6 +141,10 @@ public class MainActivity extends AppCompatActivity
 
         //Включаю использование JavaScript
         myWebView.getSettings().setJavaScriptEnabled(true);
+
+
+        p_bar.setVisibility(View.INVISIBLE);
+        myWebView.setVisibility(View.VISIBLE);
 
         if (isOnline()) {
             myWebView.loadUrl("http://fias.nalog.ru/");
@@ -139,39 +173,13 @@ public class MainActivity extends AppCompatActivity
             @RequiresApi(api = Build.VERSION_CODES.M)
             @Override
             public void onClick(View view) {
-
-                Byte value = 1;
-
-                String date = null;
-
-
-
-
-                c = Calendar.getInstance();
-
-                date = DateTuesday(value);
-
-                toast = Toast.makeText(getApplicationContext(),  " " + date, Toast.LENGTH_SHORT);
-                toast.show();
-
-
-
-
-
-
-                String url_bd = "http://fias.nalog.ru/Public/Downloads/" + date + "/BASE.7Z";
-
-
                 try {
                     if (isOnline()) {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
                             if (Build.VERSION.SDK_INT == Build.VERSION_CODES.KITKAT || Build.VERSION.SDK_INT == Build.VERSION_CODES.LOLLIPOP || Build.VERSION.SDK_INT == Build.VERSION_CODES.LOLLIPOP_MR1 || checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
-                                downloadManager = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
-                                Uri uri = Uri.parse(url_bd);
-                                DownloadManager.Request request = new DownloadManager.Request(uri);
-                                request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
-                                request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "FIAS_BD/" + "FIAS.7Z");
-                                Long reference = downloadManager.enqueue(request);
+
+                                dh = new DownloadThread();
+                                dh.start();
 
                                 Snackbar.make(view, "Загрузка базы данных началась", Snackbar.LENGTH_LONG)
                                         .setAction("Action", null).show();
@@ -252,46 +260,6 @@ public class MainActivity extends AppCompatActivity
     }
 
 
-    public static Boolean unzip(String sourceFile, String destinationFolder)  {
-        ZipInputStream zis = null;
-
-        try {
-            zis = new ZipInputStream(new BufferedInputStream(new FileInputStream(sourceFile)));
-            ZipEntry ze;
-            int count;
-            byte[] buffer = new byte[400000];
-            while ((ze = zis.getNextEntry()) != null) {
-                String fileName = ze.getName();
-                fileName = fileName.substring(fileName.indexOf("/") + 1);
-                File file = new File(destinationFolder, fileName);
-                File dir = ze.isDirectory() ? file : file.getParentFile();
-
-                if (!dir.isDirectory() && !dir.mkdirs())
-                    throw new FileNotFoundException("Invalid path: " + dir.getAbsolutePath());
-                if (ze.isDirectory()) continue;
-                FileOutputStream fout = new FileOutputStream(file);
-                try {
-                    while ((count = zis.read(buffer)) != -1)
-                        fout.write(buffer, 0, count);
-                } finally {
-                    fout.close();
-                }
-
-            }
-        } catch (IOException ioe){
-            Log.d(TAG,ioe.getMessage());
-            return false;
-        }  finally {
-            if(zis!=null)
-                try {
-                    zis.close();
-                } catch(IOException e) {
-
-                }
-        }
-        return true;
-    }
-
 
     public void un7zip() throws IOException {
 
@@ -333,6 +301,78 @@ public class MainActivity extends AppCompatActivity
 
 
 
+    class GorodaThread extends Thread {
+        public void run() {
+            try {
+
+                System.out.println("Main thread begin");
+                final ArrayList<Integer> id_g = new ArrayList<Integer>();
+                Message msg = handler.obtainMessage();
+
+                String str = null;
+
+                DbfHeader dbfHeader = DbfEngine.getHeader(new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) + "/FIAS_BD/" + "KLADR.dbf"), null);
+                DbfIterator dbfIterator = dbfHeader.getDbfIterator();
+
+
+                while (dbfIterator.hasMoreRecords()) {
+                    DbfRecord dbfRecord = dbfIterator.nextRecord();
+                    str = dbfRecord.getString("SOCR");
+                    if (str.equals("г")) {
+                        n_g.add(dbfRecord.getString("NAME"));
+                    }
+                }
+
+                handler.sendMessage(msg);
+                System.out.println("Main thread finished");
+            } catch (Exception e) {
+
+            }
+        }
+    }
+
+    @SuppressLint("HandlerLeak") Handler handler = new Handler(){
+        public void handleMessage(Message msg) {
+
+            p_bar.setVisibility(View.INVISIBLE);
+            myLiner.setVisibility(View.VISIBLE);
+
+        }
+    };
+
+
+    class DownloadThread extends Thread {
+        public void run() {
+            try {
+
+                System.out.println("Main thread begin");
+
+                Byte value = 1;
+                String date = null;
+                c = Calendar.getInstance();
+                date = DateTuesday(value);
+                String url_bd = "http://fias.nalog.ru/Public/Downloads/" + date + "/BASE.7Z";
+                downloadManager = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
+                Uri uri = Uri.parse(url_bd);
+                DownloadManager.Request request = new DownloadManager.Request(uri);
+                request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+                request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "FIAS_BD/" + "FIAS.7Z");
+                Long reference = downloadManager.enqueue(request);
+
+                System.out.println("Main thread finished");
+            } catch (Exception e) {
+
+            }
+        }
+    }
+
+    public void S_Click(View view) {
+
+        toast = Toast.makeText(getApplicationContext(), "Давай ссука " + gh.isAlive(), Toast.LENGTH_SHORT);
+        toast.show();
+
+
+    }
 
 
 
@@ -417,102 +457,56 @@ public class MainActivity extends AppCompatActivity
 
         } else if (id == R.id.offline) {
 
-            // проверяем был ли уже загружен файл
-
-            File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS + "/FIAS_BD");
-            File file = new File(path, "FIAS.7z");
 
 
-            //Проверяю существует ли архив с базой данных
-            if (!file.exists()){
+            if ((dh.isAlive() == false)){
 
-                toast = Toast.makeText(getApplicationContext(), "База данных отсутствует, загрузите её нажав на кнопку в правом нижнем углу", Toast.LENGTH_LONG);
-                toast.show();
-
-            }else{
-
-                //Проверяю существует ли в папке с базой данных разорхивированые файлы
-                file = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) + "/FIAS_BD");
-
-                if (file.isDirectory() && (file.list().length < 9)){
-
-
-                    //try {
-                        String fl = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) + "/FIAS_BD/" + "FIAS.7Z";
-                        SevenZFile sevenZFile = null;
-
-                        File file2 = new File(path, "FIAS.7Z");
-
-
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-                            if (Build.VERSION.SDK_INT == Build.VERSION_CODES.KITKAT || Build.VERSION.SDK_INT == Build.VERSION_CODES.LOLLIPOP || Build.VERSION.SDK_INT == Build.VERSION_CODES.LOLLIPOP_MR1 || checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
-                                try {
-                                    sevenZFile = new SevenZFile(new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) + "/FIAS_BD/" + "FIAS.7Z"));
-                                } catch (IOException e) {
-                                    e.printStackTrace();
-                                }
-                            }
-                        }
-
-
-                    //sevenZFile = new SevenZFile(new File(path, "FIAS.7z"));
-
-
-
-                        /*SevenZArchiveEntry entry = sevenZFile.getNextEntry();
-                        while (entry != null) {
-
-                            FileOutputStream out = new FileOutputStream(entry.getName());
-                            byte[] content = new byte[(int) entry.getSize()];
-                            sevenZFile.read(content, 0, content.length);
-                            out.write(content);
-                            out.close();
-                            entry = sevenZFile.getNextEntry();
-                        }
-                        sevenZFile.close();*/
-
-                    //} catch (IOException e) {
-                    //    e.printStackTrace();
-                    //}
-                    toast = Toast.makeText(getApplicationContext(), "Files = " + file.list().length + "   " + file2.exists(), Toast.LENGTH_LONG);
+                myWebView.setVisibility(View.GONE);
+                p_bar.setVisibility(View.VISIBLE);
+                myLiner.setVisibility(View.INVISIBLE);
+                // проверяем был ли уже загружен файл
+                File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS + "/FIAS_BD");
+                File file = new File(path, "FIAS.7z");
+                //Проверяю существует ли архив с базой данных
+                if (!file.exists()){
+                    toast = Toast.makeText(getApplicationContext(), "База данных отсутствует, загрузите её нажав на кнопку в правом нижнем углу", Toast.LENGTH_LONG);
                     toast.show();
-
-
-
-
-
-
-
-
-
                 }else{
 
-                    file = new File(path, "FIAS.7Z");
+                    //Проверяю существует ли в папке с базой данных разорхивированые файлы
+                    file = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) + "/FIAS_BD");
 
+                    if (file.isDirectory() && (file.list().length < 9)){
 
+                        String fl = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) + "/FIAS_BD/" + "FIAS.7Z";
+                        SevenZFile sevenZFile = null;
+                        File file2 = new File(path, "FIAS.7Z");
+                        toast = Toast.makeText(getApplicationContext(), "Files = " + file.list().length + "   " + file2.exists(), Toast.LENGTH_LONG);
+                        toast.show();
+                    }else{
 
+                        p_bar.setVisibility(View.VISIBLE);
+                        Spinner spinner = (Spinner)findViewById(R.id.spinner);
+                        ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, n_g);
+                        spinner.setAdapter(adapter);
+                        gh = new GorodaThread();
+                        gh.start();
+
+                        toast = Toast.makeText(getApplicationContext(), "Подождите идёт загрузка автономного режима", Toast.LENGTH_LONG);
+                        toast.show();
+
+                    }
                 }
 
 
+            } else {
+
+                toast = Toast.makeText(getApplicationContext(), "Загрузка не завершена, дождитесь окончания загрузки и повторите попытку", Toast.LENGTH_LONG);
+                toast.show();
 
             }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-            myWebView.setVisibility(View.GONE);
-            myLiner.setVisibility(View.VISIBLE);
 
         }
 

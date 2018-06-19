@@ -2,6 +2,7 @@
 <android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/id_c"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     app:layout_behavior="@string/appbar_scrolling_view_behavior"
@@ -9,13 +10,25 @@
     tools:showIn="@layout/app_bar_main">
 
 
+    <ProgressBar
+        android:id="@+id/progressBar"
+        style="@style/Widget.AppCompat.ProgressBar"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="invisible"
+        tools:layout_editor_absoluteX="187dp"
+        tools:layout_editor_absoluteY="225dp" />
+
     <WebView
         android:id="@+id/Web"
+        style="@android:style/Widget.DeviceDefault.Light.WebView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:visibility="invisible"
         tools:layout_editor_absoluteX="9dp"
-        tools:layout_editor_absoluteY="9dp" />
+        tools:layout_editor_absoluteY="9dp">
+
+    </WebView>
 
     <LinearLayout
         android:id="@+id/offline"
@@ -51,7 +64,9 @@
             android:id="@+id/search"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Поиск" />
+            android:onClick="S_Click"
+            android:text="Поиск"
+            tools:ignore="OnClick" />
     </LinearLayout>
 
 
