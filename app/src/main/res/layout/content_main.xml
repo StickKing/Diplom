@@ -92,13 +92,20 @@
             android:text="Поиск"
             tools:ignore="OnClick" />
 
-        <Button
-            android:id="@+id/b"
+        <ScrollView
+            android:id="@+id/scroll_d"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:onClick="BClick"
-            android:text="Button"
-            tools:ignore="OnClick" />
+            android:layout_height="match_parent"
+            android:visibility="visible">
+
+            <LinearLayout
+                android:id="@+id/lay_d"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="visible" />
+        </ScrollView>
+
     </LinearLayout>
 
 
