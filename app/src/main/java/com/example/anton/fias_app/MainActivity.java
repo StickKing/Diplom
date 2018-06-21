@@ -1,25 +1,19 @@
 package com.example.anton.fias_app;
 
+
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
 import android.app.DownloadManager;
 import android.content.Context;
-import android.content.Intent;
 import android.content.pm.PackageManager;
-
-import java.io.BufferedInputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Calendar;
 import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -28,7 +22,6 @@ import android.support.constraint.ConstraintLayout;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
-import android.util.Log;
 import android.view.View;
 import android.support.design.widget.NavigationView;
 import android.support.v4.view.GravityCompat;
@@ -39,34 +32,24 @@ import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.webkit.WebView;
-import android.webkit.WebViewClient;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.LinearLayout;
-
-import java.util.Date;
-import java.util.Enumeration;
-import java.util.Timer;
-import java.util.concurrent.TimeUnit;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipException;
-import java.util.zip.ZipFile.*;
-import java.util.zip.ZipFile;
-import java.util.zip.ZipInputStream;
-
 import android.os.*;
 import android.widget.ProgressBar;
 import android.widget.Spinner;
+import android.widget.TextView;
 import android.widget.Toast;
-
 import org.apache.commons.compress.archivers.sevenz.SevenZArchiveEntry;
 import org.apache.commons.compress.archivers.sevenz.SevenZFile;
-
 import ru.smartflex.tools.dbf.DbfEngine;
 import ru.smartflex.tools.dbf.DbfHeader;
 import ru.smartflex.tools.dbf.DbfIterator;
 import ru.smartflex.tools.dbf.DbfRecord;
-import ru.smartflex.tools.dbf.test.Fp26Reader;
+import android.widget.AdapterView.OnItemSelectedListener;
+
 
 
 public class MainActivity extends AppCompatActivity
@@ -75,13 +58,23 @@ public class MainActivity extends AppCompatActivity
 
     //Компоненты интерфейса
     private WebView myWebView; //Объявляю webview
-    private LinearLayout myLiner;
+    private LinearLayout offline;
     private Button s_but;
     private ProgressBar p_bar;
+    Spinner spinner;
+    LinearLayout linearLayout;
+    EditText s_text;
+    TextView s_view;
+    Button b;
 
     //Потоки
     GorodaThread gh = null;
     DownloadThread dh = null;
+    SearchCodeGorod scg = null;
+    //SearchStreetCode sc = null;
+
+    String code_g = null;
+    String c_s = "всё плохо";
 
     private DownloadManager downloadManager;
     private Context context = null;
@@ -90,6 +83,12 @@ public class MainActivity extends AppCompatActivity
     Runnable runnable = null;
     Thread thread = null;
     ArrayList<String> n_g = new ArrayList<String>();
+    ArrayList<String> c_g = new ArrayList<String>();
+    ArrayList<String> code_s = new ArrayList<String>();
+    ArrayList<String> name_s = new ArrayList<String>();
+
+
+    ArrayAdapter<String> adapter;
 
 
     Calendar c = Calendar.getInstance();
@@ -124,13 +123,17 @@ public class MainActivity extends AppCompatActivity
         ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_CALENDAR}, REQUEST_CODE);
         ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_CALENDAR}, REQUEST_CODE);
 
-
+        b = (Button) findViewById(R.id.b);
+        s_view = (TextView) findViewById(R.id.textView);
         s_but = (Button)findViewById(R.id.search);
         p_bar = (ProgressBar)findViewById(R.id.progressBar);
+        spinner = (Spinner)findViewById(R.id.spinner);
+        linearLayout = (LinearLayout) findViewById(R.id.progree_lay);
         ConstraintLayout constraintLayout = (ConstraintLayout) findViewById(R.id.id_c);
+        s_text = (EditText) findViewById(R.id.editText);
         //Присоединяю переменную webview к webview на моём активити
         myWebView = (WebView) findViewById(R.id.Web);
-        myLiner = (LinearLayout) findViewById(R.id.offline);
+        offline = (LinearLayout) findViewById(R.id.offline);
 
         //Делаю так чтобы ссылки не открывались во внешних браузерах
         myWebView.setWebViewClient(new MyWebViewClient());
@@ -143,7 +146,7 @@ public class MainActivity extends AppCompatActivity
         myWebView.getSettings().setJavaScriptEnabled(true);
 
 
-        p_bar.setVisibility(View.INVISIBLE);
+        linearLayout.setVisibility(View.INVISIBLE);
         myWebView.setVisibility(View.VISIBLE);
 
         if (isOnline()) {
@@ -304,27 +307,28 @@ public class MainActivity extends AppCompatActivity
     class GorodaThread extends Thread {
         public void run() {
             try {
-
-                System.out.println("Main thread begin");
+                System.out.println("Gorod thread begin");
                 final ArrayList<Integer> id_g = new ArrayList<Integer>();
                 Message msg = handler.obtainMessage();
-
                 String str = null;
+
+                n_g.clear();
+                c_g.clear();
 
                 DbfHeader dbfHeader = DbfEngine.getHeader(new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) + "/FIAS_BD/" + "KLADR.dbf"), null);
                 DbfIterator dbfIterator = dbfHeader.getDbfIterator();
-
-
                 while (dbfIterator.hasMoreRecords()) {
                     DbfRecord dbfRecord = dbfIterator.nextRecord();
                     str = dbfRecord.getString("SOCR");
-                    if (str.equals("г")) {
+                    if ((str.equals("г") && (dbfRecord.getString("STATUS").equals("3") || dbfRecord.getString("STATUS").equals("2"))) || (str.equals("г") && (dbfRecord.getString("NAME").equals("Москва") || dbfRecord.getString("NAME").equals("Санкт-Петербург")))) {
                         n_g.add(dbfRecord.getString("NAME"));
+                        c_g.add(dbfRecord.getString("CODE"));
                     }
                 }
 
+
                 handler.sendMessage(msg);
-                System.out.println("Main thread finished");
+                System.out.println("Gorod thread finished");
             } catch (Exception e) {
 
             }
@@ -334,8 +338,9 @@ public class MainActivity extends AppCompatActivity
     @SuppressLint("HandlerLeak") Handler handler = new Handler(){
         public void handleMessage(Message msg) {
 
-            p_bar.setVisibility(View.INVISIBLE);
-            myLiner.setVisibility(View.VISIBLE);
+            linearLayout.setVisibility(View.INVISIBLE);
+            offline.setVisibility(View.VISIBLE);
+            spinner.setAdapter(adapter);
 
         }
     };
@@ -366,9 +371,101 @@ public class MainActivity extends AppCompatActivity
         }
     }
 
+    @SuppressLint("HandlerLeak") Handler handlertwo = new Handler(){
+        public void handleMessage(Message msg) {
+
+            s_view.setText("Ищем улицу");
+
+        }
+    };
+
+
+
+    @SuppressLint("HandlerLeak") Handler handlerthree = new Handler(){
+        public void handleMessage(Message msg) {
+
+            offline.setVisibility(View.VISIBLE);
+            linearLayout.setVisibility(View.INVISIBLE);
+            s_view.setText(c_s);
+
+        }
+    };
+
+    class SearchCodeGorod extends Thread {
+        public void run() {
+            try {
+
+                System.out.println("gorod thread begin");
+                ArrayList<String> codes = new ArrayList<String>();
+
+                for (Integer i = 0; i < n_g.size(); i++){
+
+                    if (spinner.getSelectedItem().toString().equals(n_g.get(i))){
+                        code_g = c_g.get(i);
+                    }
+
+                }
+
+
+
+                DbfHeader dbfHeader = DbfEngine.getHeader(new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) + "/FIAS_BD/" + "STREET.dbf"), null);
+                DbfIterator dbfIterator = dbfHeader.getDbfIterator();
+                while (dbfIterator.hasMoreRecords()) {
+                    DbfRecord dbfRecord = dbfIterator.nextRecord();
+
+                            if (s_text.getText().toString().equals(dbfRecord.getString("NAME"))){
+
+                                codes.add(dbfRecord.getString("CODE"));
+
+                            }
+
+                }
+
+
+
+
+
+
+
+
+
+                System.out.println("gorod thread finished " + code_g + " " + c_s);
+            } catch (Exception e) {
+
+            }
+        }
+    }
+
+
+
     public void S_Click(View view) {
 
-        toast = Toast.makeText(getApplicationContext(), "Давай ссука " + gh.isAlive(), Toast.LENGTH_SHORT);
+        if (gh.isAlive() == false){
+
+            String search_text = s_text.getText().toString();
+
+            offline.setVisibility(View.INVISIBLE);
+            linearLayout.setVisibility(View.VISIBLE);
+            s_view.setText("Определяем город");
+
+            scg = new SearchCodeGorod();
+            scg.setPriority(10);
+            scg.start();
+
+
+            //toast = Toast.makeText(getApplicationContext(), "Давай ссука " + s_text.getText() + " " + sg.isAlive(), Toast.LENGTH_SHORT);
+           // toast.show();
+
+        }
+
+
+
+    }
+
+    public void BClick(View view) {
+
+
+        toast = Toast.makeText(getApplicationContext(), "код улицы " + c_s + " " + s_text.getText().toString(), Toast.LENGTH_SHORT);
         toast.show();
 
 
@@ -425,35 +522,43 @@ public class MainActivity extends AppCompatActivity
         int id = item.getItemId();
 
         if (id == R.id.general) {
-            if (isOnline()) {
 
-                myWebView.loadUrl("http://fias.nalog.ru/");
+            if (gh.isAlive() == false) {
+                if (isOnline()) {
 
-            }
-            else{
+                    myWebView.loadUrl("http://fias.nalog.ru/");
 
-                myWebView.loadData("" +
-                        "<html>" +
-                        "   <body>" +
-                        "       <h1>Возникла проблема с сетью</h1>" +
-                        "       <p>Причины по которым это могло произойти:</p>" +
-                        "       <hr>" +
+                } else {
 
-                        "       <ul>"+
-                        "           <li>Отсутствует подключение к интернету</li>" +
-                        "           <li>Сайт на данный момент не доступен</li>" +
-                        "           <li>Вы подключены к специфичной сети</li>" +
-                        "       </ul>" +
-                        " </body>" +
-                        "" +
-                        "</html>", "text/html", "UTF-8");
+                    myWebView.loadData("" +
+                            "<html>" +
+                            "   <body>" +
+                            "       <h1>Возникла проблема с сетью</h1>" +
+                            "       <p>Причины по которым это могло произойти:</p>" +
+                            "       <hr>" +
 
-                toast = Toast.makeText(getApplicationContext(), "Отсутствует подключение к интернету", Toast.LENGTH_SHORT);
+                            "       <ul>" +
+                            "           <li>Отсутствует подключение к интернету</li>" +
+                            "           <li>Сайт на данный момент не доступен</li>" +
+                            "           <li>Вы подключены к специфичной сети</li>" +
+                            "       </ul>" +
+                            " </body>" +
+                            "" +
+                            "</html>", "text/html", "UTF-8");
+
+                    toast = Toast.makeText(getApplicationContext(), "Отсутствует подключение к интернету", Toast.LENGTH_SHORT);
+                    toast.show();
+
+                }
+                myWebView.setVisibility(View.VISIBLE);
+                offline.setVisibility(View.GONE);
+            }else {
+
+
+                toast = Toast.makeText(getApplicationContext(), "Дождитесь окончания загрузки автономного режима", Toast.LENGTH_SHORT);
                 toast.show();
 
             }
-            myWebView.setVisibility(View.VISIBLE);
-            myLiner.setVisibility(View.GONE);
 
         } else if (id == R.id.offline) {
 
@@ -462,8 +567,8 @@ public class MainActivity extends AppCompatActivity
             if ((dh.isAlive() == false)){
 
                 myWebView.setVisibility(View.GONE);
-                p_bar.setVisibility(View.VISIBLE);
-                myLiner.setVisibility(View.INVISIBLE);
+                linearLayout.setVisibility(View.VISIBLE);
+                offline.setVisibility(View.INVISIBLE);
                 // проверяем был ли уже загружен файл
                 File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS + "/FIAS_BD");
                 File file = new File(path, "FIAS.7z");
@@ -486,14 +591,35 @@ public class MainActivity extends AppCompatActivity
                     }else{
 
                         p_bar.setVisibility(View.VISIBLE);
-                        Spinner spinner = (Spinner)findViewById(R.id.spinner);
-                        ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, n_g);
-                        spinner.setAdapter(adapter);
+                        adapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, n_g);
+
+                        spinner.OnItemSelectedListener itemSelectedListener = new spinner.OnItemSelectedListener() {
+
+                            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+
+                                // Получаем выбранный объект
+                                String item = (String) parent.getItemAtPosition(position);
+
+                                if (spinner.getSelectedItem().toString().equals("Москва")){
+                                    toast = Toast.makeText(getApplicationContext(), "lf cerf", Toast.LENGTH_LONG);
+                                    toast.show();
+                                }
+
+
+                            }
+                        };
+
+
                         gh = new GorodaThread();
+                        gh.setPriority(10);
                         gh.start();
 
-                        toast = Toast.makeText(getApplicationContext(), "Подождите идёт загрузка автономного режима", Toast.LENGTH_LONG);
-                        toast.show();
+
+
+
+
+
+
 
                     }
                 }
@@ -514,5 +640,7 @@ public class MainActivity extends AppCompatActivity
         drawer.closeDrawer(GravityCompat.START);
         return true;
     }
+
+
 
 }
