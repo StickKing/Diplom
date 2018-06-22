@@ -81,6 +81,7 @@ public class MainActivity extends AppCompatActivity
     Unzippy unz = null;
 
     String code_g = null;
+    String streetok = null;
     ArrayList<String> c_s = new ArrayList<String>();
 
     private DownloadManager downloadManager;
@@ -90,11 +91,11 @@ public class MainActivity extends AppCompatActivity
     ArrayList<String> c_g = new ArrayList<String>();
 
 
-    String doma = null;
-    String doma_index = null;
-    String doma_infs = null;
-    String doma_code_infs = null;
-    String doma_okto = null;
+    ArrayList<String> doma = new ArrayList<String>();
+    ArrayList<String> doma_index = new ArrayList<String>();
+    ArrayList<String> doma_infs = new ArrayList<String>();
+    ArrayList<String> doma_code_infs = new ArrayList<String>();
+    ArrayList<String> doma_okto = new ArrayList<String>();
 
     ArrayAdapter<String> adapter;
 
@@ -481,6 +482,7 @@ public class MainActivity extends AppCompatActivity
                             if (s_text.getText().toString().equals(dbfRecord.getString("NAME")) & (code_g.equals(dbfRecord.getString("CODE").substring(0,dbfRecord.getString("CODE").length()-5)))){
 
                                 c_s.add(dbfRecord.getString("CODE"));
+                                streetok = dbfRecord.getString("OCATD");
                                 System.out.println(dbfRecord.getString("NAME"));
 
                             }
@@ -490,6 +492,8 @@ public class MainActivity extends AppCompatActivity
                 sd = new SearchDoma();
                 sd.start();
                 sd.join();
+
+
 
 
                 handlerthree.sendMessage(msg);
@@ -505,8 +509,7 @@ public class MainActivity extends AppCompatActivity
         public void handleMessage(Message msg) {
 
 
-            txt.setText("Дома: " + doma + "\n" + "Индекс: " + doma_index + "\n" + "Код ИФНС (ИМНС): " + doma_infs + "\n" + "Код территориального участка ИФНС: " + doma_code_infs + "\n" + "Код ОКАТО: " + doma_okto);
-            doma_lay.addView(txt);
+            DinamicKomponent();
 
         }
     };
@@ -520,23 +523,26 @@ public class MainActivity extends AppCompatActivity
                 //Message msg2 = handlerthree.obtainMessage();
 
 
+
+
                 DbfHeader dbfHeader = DbfEngine.getHeader(new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) + "/FIAS_BD/" + "DOMA.dbf"), null);
                 DbfIterator dbfIterator = dbfHeader.getDbfIterator();
 
                 while (dbfIterator.hasMoreRecords()) {
                     DbfRecord dbfRecord = dbfIterator.nextRecord();
 
+                    //System.out.println(Long.valueOf(c_s.get(0)) + "  " + Long.valueOf(dbfRecord.getString("CODE").substring(0, dbfRecord.getString("CODE").length()-2)));
                     for (Integer i = 0; i < c_s.size(); i++){
 
+                        //if (Long.valueOf(dbfRecord.getString("CODE").substring(0, dbfRecord.getString("CODE").length()-2)).compareTo(Long.valueOf(c_s.get(i))) == 0){
+                        if (c_s.get(i).equals(dbfRecord.getString("CODE").substring(0, dbfRecord.getString("CODE").length()-2))){
 
-                        if (c_s.get(0).equals(dbfRecord.getString("CODE").substring(0, dbfRecord.getString("CODE").length()-2))){
-
-                            doma = dbfRecord.getString("NAME");
-                            doma_index = dbfRecord.getString("INDEX");
-                            doma_infs = dbfRecord.getString("GNINMB");
-                            doma_code_infs = dbfRecord.getString("UNO");
-                            doma_okto = dbfRecord.getString("OCATD");
-                            dinamic.sendMessage(msg);
+                            doma.add(dbfRecord.getString("NAME"));
+                            doma_index.add(dbfRecord.getString("INDEX"));
+                            doma_infs.add(dbfRecord.getString("GNINMB"));
+                            doma_code_infs.add(dbfRecord.getString("UNO")) ;
+                            doma_okto.add(dbfRecord.getString("OCATD"));
+                            //dinamic.sendMessage(msg);
                             System.out.println("Bitch ");
 
 
@@ -549,6 +555,7 @@ public class MainActivity extends AppCompatActivity
 
                 }
 
+                dinamic.sendMessage(msg);
                 //System.out.println("gorod thread finished " + code_g + " ");
             } catch (Exception e) {
 
@@ -557,30 +564,32 @@ public class MainActivity extends AppCompatActivity
     }
 
 
-    public void S_Click(View view) {
 
-        if (gh.isAlive() == false){
+    public void DinamicKomponent () {
 
-            String search_text = s_text.getText().toString();
+        for (Integer i = 0; i < doma.size(); i++){
 
-            offline.setVisibility(View.INVISIBLE);
-            linearLayout.setVisibility(View.VISIBLE);
-            s_view.setText("Определяем город");
 
-            scg = new SearchCodeGorod();
-            scg.setPriority(10);
-            scg.start();
 
             txt = new TextView(this);
-
-
-            //toast = Toast.makeText(getApplicationContext(), "Давай ссука " + s_text.getText() + " " + sg.isAlive(), Toast.LENGTH_SHORT);
-           // toast.show();
+            txt.setText("Дома: " + doma.get(i) + "\n" + "Индекс: " + doma_index.get(i) + "\n" + "Код ИФНС (ИМНС): " + doma_infs.get(i) + "\n" + "Код территориального участка ИФНС: " + doma_code_infs.get(i) + "\n" + "Код ОКАТО: " + doma_okto.get(i)+ "\n" + "\n" + "\n");
+            doma_lay.addView(txt);
 
         }
 
+    }
 
 
+    public void S_Click(View view) {
+        if (gh.isAlive() == false){
+            String search_text = s_text.getText().toString();
+            offline.setVisibility(View.INVISIBLE);
+            linearLayout.setVisibility(View.VISIBLE);
+            s_view.setText("Определяем город");
+            scg = new SearchCodeGorod();
+            scg.setPriority(10);
+            scg.start();
+        }
     }
 
 
@@ -685,7 +694,7 @@ public class MainActivity extends AppCompatActivity
                 File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS + "/FIAS_BD");
                 File file = new File(path, "FIAS.7z");
                 //Проверяю существует ли архив с базой данных
-                if (file.exists()){
+                if (!file.exists()){
                     toast = Toast.makeText(getApplicationContext(), "База данных отсутствует, загрузите её нажав на кнопку в правом нижнем углу", Toast.LENGTH_LONG);
                     toast.show();
                 }else{

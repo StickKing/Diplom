@@ -101,8 +101,9 @@
             <LinearLayout
                 android:id="@+id/lay_d"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="match_parent"
                 android:orientation="vertical"
+                android:showDividers="beginning|end"
                 android:visibility="visible" />
         </ScrollView>
 
